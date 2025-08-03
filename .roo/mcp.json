@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "C://Python310//Scripts//uv.exe",
+      "args": ["run", "--directory", "C://MCP_Space//serena", "serena-mcp-server"]
+   }
+  }
+}

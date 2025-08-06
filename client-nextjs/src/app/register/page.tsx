@@ -81,12 +81,26 @@ export default function RegisterPage() {
       try {
         setErrors({});
         const { name, email, password } = formData;
-        const { user, token } = await authService.registerWithEmail(name, email, password);
-        login(user, token);
-        router.push('/dashboard');
-      } catch (error) {
+        const response = await authService.registerWithEmail(name, email, password);
+        
+        // Check if registration requires email verification
+        if (response?.emailSent) {
+          // Show success message and redirect to login or verification notice page
+          alert(response.message || 'Registration successful! Please check your email to verify your account before logging in.');
+          router.replace('/login');
+        } else if (response?.user && response?.token) {
+          // Old flow - auto login (fallback)
+          login(response.user, response.token);
+          router.replace('/dashboard');
+        } else {
+          // Fallback - show generic success message
+          alert('Registration successful! Please check your email if verification is required.');
+          router.replace('/login');
+        }
+      } catch (error: unknown) {
         console.error('Registration failed:', error);
-        setErrors({ form: 'Registration failed. Please try again.' });
+        const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';
+        setErrors({ form: errorMessage });
       }
     }
   };

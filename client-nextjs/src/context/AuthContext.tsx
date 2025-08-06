@@ -19,12 +19,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (typeof window !== 'undefined') {
       const storedToken = localStorage.getItem('token');
       setToken(storedToken);
+      
+      // If we're on client side and no token exists, immediately stop loading
+      if (!storedToken) {
+        setLoading(false);
+      }
+    } else {
+      // If we're on server side, immediately stop loading
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     const verifyUserSession = async () => {
-      if (token) {
+      if (token && typeof window !== 'undefined') {
         try {
           // If a token exists, try to fetch the user data
           const userData = await authService.getMe(token);
@@ -38,11 +46,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     };
 
-    // Only run verification if we have a token or if we've confirmed there's no token
-    if (token !== null) {
+    // Only run verification if we have a token and we're on client side
+    if (token && typeof window !== 'undefined') {
       verifyUserSession();
-    } else if (typeof window !== 'undefined') {
-      // If we're on client side and no token, stop loading
+    } else {
       setLoading(false);
     }
   }, [token]);
@@ -73,10 +80,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!token,
   };
 
-  // We render children only after the initial loading is complete to avoid flicker
+  // Always render children to prevent blocking
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

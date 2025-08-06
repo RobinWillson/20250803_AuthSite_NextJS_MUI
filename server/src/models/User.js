@@ -7,6 +7,9 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   isAdmin: { type: Boolean, default: false },
   userLevel: { type: String, default: 'basic' },
+  emailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String },
+  emailVerificationExpires: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

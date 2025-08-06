@@ -4,6 +4,7 @@ import validator from 'validator';
 import asyncHandler from 'express-async-handler';
 import { OAuth2Client } from 'google-auth-library';
 import { generateToken } from '../utils/tokenUtils.js';
+import { generateVerificationToken, sendVerificationEmail } from '../utils/emailService.js';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -91,17 +92,35 @@ export const registerUser = asyncHandler(async (req, res) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const isAdmin = email === 'robinheck101@gmail.com';
+  
+  // Generate email verification token
+  const verificationToken = generateVerificationToken();
+  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  
   const newUser = new User({
     email,
     password: hashedPassword,
     name,
     isAdmin,
+    emailVerificationToken: verificationToken,
+    emailVerificationExpires: verificationExpires,
   });
 
   await newUser.save();
 
-  const token = generateToken(newUser);
-  res.status(201).json({ token, message: 'User registered successfully' });
+  // Send verification email
+  try {
+    await sendVerificationEmail(email, name, verificationToken);
+  } catch (emailError) {
+    console.error('Failed to send verification email:', emailError);
+    // Don't fail registration if email fails, just log it
+  }
+
+  // Don't immediately return JWT token - user needs to verify email first
+  res.status(201).json({ 
+    message: 'User registered successfully. Please check your email to verify your account.',
+    emailSent: true 
+  });
 });
 
 // @desc    Auth user & get token
@@ -132,6 +151,12 @@ export const loginUser = asyncHandler(async (req, res) => {
     throw new Error('Invalid credentials');
   }
 
+  // Check if email is verified
+  if (!user.emailVerified) {
+    res.status(403);
+    throw new Error('Please verify your email address before logging in. Check your inbox for the verification link.');
+  }
+
   const token = generateToken(user);
   res.json({ token, message: 'Login successful' });
 });
@@ -143,3 +168,88 @@ export const logoutUser = (req, res) => {
   // For stateless JWT, the client is responsible for clearing the token.
   res.status(200).json({ message: 'Logout successful. Please clear your token on the client side.' });
 };
+
+// @desc    Verify email with token
+// @route   GET /api/auth/verify-email
+// @access  Public
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    res.status(400);
+    throw new Error('Verification token is required');
+  }
+
+  const user = await User.findOne({
+    emailVerificationToken: token,
+    emailVerificationExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    res.status(400);
+    throw new Error('Invalid or expired verification token');
+  }
+
+  // Update user as verified
+  user.emailVerified = true;
+  user.emailVerificationToken = undefined;
+  user.emailVerificationExpires = undefined;
+  await user.save();
+
+  // Generate JWT token for the verified user
+  const jwtToken = generateToken(user);
+
+  res.status(200).json({
+    message: 'Email verified successfully',
+    token: jwtToken,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      isAdmin: user.isAdmin,
+      emailVerified: user.emailVerified,
+    },
+  });
+});
+
+// @desc    Resend verification email
+// @route   POST /api/auth/resend-verification
+// @access  Public
+export const resendVerificationEmail = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    res.status(400);
+    throw new Error('Email is required');
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase() });
+
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  if (user.emailVerified) {
+    res.status(400);
+    throw new Error('Email is already verified');
+  }
+
+  // Generate new verification token
+  const verificationToken = generateVerificationToken();
+  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  user.emailVerificationToken = verificationToken;
+  user.emailVerificationExpires = verificationExpires;
+  await user.save();
+
+  // Send verification email
+  try {
+    await sendVerificationEmail(user.email, user.name, verificationToken);
+    res.status(200).json({ message: 'Verification email sent successfully' });
+  } catch (emailError) {
+    console.error('Failed to send verification email:', emailError);
+    res.status(500);
+    throw new Error('Failed to send verification email');
+  }
+});

@@ -8,7 +8,7 @@ export default function Home() {
           Welcome to Authentication Site
         </Typography>
         <Typography variant="h5" component="h2" gutterBottom>
-          Next.js 14 with Material-UI Authentication System
+          Next.js 15 with Material-UI Authentication System
         </Typography>
         <Typography variant="body1" color="text.secondary">
           This is the home page. Visit /login to sign in or /register to create an account.

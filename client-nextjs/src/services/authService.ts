@@ -1,28 +1,44 @@
-import { User, AuthResponse } from '@/types/auth';
+import { User, AuthResponse, RegisterResponse } from '@/types/auth';
+import axios from 'axios';
 
-// This is a MOCK service. In a real app, this would make API calls to your backend.
+// API base URL for the backend server
+const API_BASE_URL = 'http://localhost:5000/api';
 
-const FAKE_USER_DATA: User = {
-  id: '123',
-  name: 'John Doe',
-  email: 'john.doe@example.com',
+// Configure axios default headers
+axios.defaults.headers.common['Content-Type'] = 'application/json';
+
+// Helper function to handle axios errors properly
+const handleAxiosError = (error: unknown): string => {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message || error.message || 'Network error';
+  }
+  return error instanceof Error ? error.message : 'Unknown error';
 };
 
-const FAKE_APP_TOKEN = 'fake-jwt-token-for-app-session';
-
 /**
- * Exchanges a Google access token for your application's own session token (JWT).
- * @param googleAccessToken - The access token received from Google Sign-In.
+ * Exchanges a Google ID token for your application's own session token (JWT).
+ * @param googleIdToken - The ID token received from Google Sign-In.
  * @returns A promise that resolves with user data and an app token.
  */
-const googleLogin = async (googleAccessToken: string): Promise<AuthResponse> => {
-  console.log('Sending Google Access Token to backend:', googleAccessToken);
-  // In a real app, you would POST this to your backend:
-  // const response = await axios.post('/api/auth/google', { token: googleAccessToken });
-  // return response.data;
-
-  // For now, we'll just simulate a successful response.
-  return Promise.resolve({ user: FAKE_USER_DATA, token: FAKE_APP_TOKEN });
+const googleLogin = async (googleIdToken: string): Promise<AuthResponse> => {
+  try {
+    console.log('Sending Google ID Token to backend for authentication');
+    const response = await axios.post(`${API_BASE_URL}/auth/google`, { 
+      token: googleIdToken 
+    });
+    
+    // Get user data from the token
+    const userData = await getMe(response.data.token);
+    
+    return { 
+      user: userData, 
+      token: response.data.token 
+    };
+  } catch (error: unknown) {
+    const errorMessage = handleAxiosError(error);
+    console.error('Google login failed:', errorMessage);
+    throw new Error(errorMessage || 'Google login failed');
+  }
 };
 
 /**
@@ -32,14 +48,25 @@ const googleLogin = async (googleAccessToken: string): Promise<AuthResponse> => 
  * @returns A promise that resolves with user data and an app token.
  */
 const loginWithEmail = async (email: string, password: string): Promise<AuthResponse> => {
-  console.log('Attempting to log in with email:', email);
-  console.log(password);
-  // In a real app, you would POST this to your backend:
-  // const response = await axios.post('/api/auth/login', { email, password });
-  // return response.data;
+  try {
+    console.log('Attempting to log in with email:', email);
+    const response = await axios.post(`${API_BASE_URL}/auth/login`, { 
+      email, 
+      password 
+    });
 
-  // For now, we'll just simulate a successful response.
-  return Promise.resolve({ user: { ...FAKE_USER_DATA, email }, token: FAKE_APP_TOKEN });
+    // Get user data from the token
+    const userData = await getMe(response.data.token);
+    
+    return { 
+      user: userData, 
+      token: response.data.token 
+    };
+  } catch (error: unknown) {
+    const errorMessage = handleAxiosError(error);
+    console.error('Email login failed:', errorMessage);
+    throw new Error(errorMessage || 'Login failed');
+  }
 };
 
 /**
@@ -49,15 +76,39 @@ const loginWithEmail = async (email: string, password: string): Promise<AuthResp
  * @param password - The user's password.
  * @returns A promise that resolves with user data and an app token.
  */
-const registerWithEmail = async (name: string, email: string, password: string): Promise<AuthResponse> => {
-  console.log('Attempting to register with:', { name, email });
-  console.log(password);
-  // In a real app, you would POST this to your backend:
-  // const response = await axios.post('/api/auth/register', { name, email, password });
-  // return response.data;
+const registerWithEmail = async (name: string, email: string, password: string): Promise<RegisterResponse> => {
+  try {
+    console.log('Attempting to register with:', { name, email });
+    const response = await axios.post(`${API_BASE_URL}/auth/register`, { 
+      name, 
+      email, 
+      password 
+    });
 
-  // For now, we'll just simulate a successful response.
-  return Promise.resolve({ user: { ...FAKE_USER_DATA, name, email }, token: FAKE_APP_TOKEN });
+    // Check if this is the new email verification flow
+    if (response.data.emailSent) {
+      return {
+        message: response.data.message,
+        emailSent: response.data.emailSent
+      };
+    }
+    
+    // Old flow - get user data from token (fallback)
+    if (response.data.token) {
+      const userData = await getMe(response.data.token);
+      return { 
+        user: userData, 
+        token: response.data.token 
+      };
+    }
+    
+    // Return raw response if neither case matches
+    return response.data;
+  } catch (error: unknown) {
+    const errorMessage = handleAxiosError(error);
+    console.error('Registration failed:', errorMessage);
+    throw new Error(errorMessage || 'Registration failed');
+  }
 };
 
 /**
@@ -66,9 +117,25 @@ const registerWithEmail = async (name: string, email: string, password: string):
  * @returns A promise that resolves with the user's data.
  */
 const getMe = async (token: string): Promise<User> => {
-  console.log('Verifying app token with backend:', token);
-  // Simulate fetching user data with the token
-  return Promise.resolve(FAKE_USER_DATA);
+  try {
+    console.log('Fetching user data from backend');
+    const response = await axios.get(`${API_BASE_URL}/users/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    return {
+      id: response.data._id,
+      name: response.data.name,
+      email: response.data.email,
+      isAdmin: response.data.isAdmin || false
+    };
+  } catch (error: unknown) {
+    const errorMessage = handleAxiosError(error);
+    console.error('Failed to fetch user data:', errorMessage);
+    throw new Error(errorMessage || 'Failed to fetch user data');
+  }
 };
 
 const authService = { googleLogin, loginWithEmail, registerWithEmail, getMe };

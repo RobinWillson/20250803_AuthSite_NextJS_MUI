@@ -19,3 +19,10 @@ export interface AuthResponse {
   user: User;
   token: string;
 }
+
+export interface RegisterResponse {
+  message?: string;
+  emailSent?: boolean;
+  user?: User;
+  token?: string;
+}

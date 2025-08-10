@@ -14,7 +14,6 @@ import {
 } from '@mui/material';
 import { CheckCircle, Error } from '@mui/icons-material';
 import { useAuth } from '@/hooks/useAuth';
-import RainbowBackground from '@/components/RainbowBackground';
 import axios from 'axios';
 
 export default function VerifyEmailPage() {
@@ -39,17 +38,12 @@ export default function VerifyEmailPage() {
     try {
       const response = await axios.get(`http://localhost:5000/api/auth/verify-email?token=${verificationToken}`);
       
-      // Auto-login the user after successful verification
-      if (response.data.token && response.data.user) {
-        login(response.data.user, response.data.token);
-      }
-      
       setStatus('success');
       setMessage(response.data.message);
       
-      // Redirect to dashboard after 3 seconds
+      // Redirect to login page after 3 seconds
       setTimeout(() => {
-        router.replace('/dashboard');
+        router.replace('/login');
       }, 3000);
       
     } catch (error: any) {
@@ -104,14 +98,14 @@ export default function VerifyEmailPage() {
               {message}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Redirecting you to the dashboard in 3 seconds...
+              Redirecting you to the login page in 3 seconds...
             </Typography>
             <Button 
               variant="contained" 
-              onClick={() => router.replace('/dashboard')}
+              onClick={() => router.replace('/login')}
               sx={{ mt: 2 }}
             >
-              Go to Dashboard Now
+              Go to Login Now
             </Button>
           </Box>
         );
@@ -177,7 +171,20 @@ export default function VerifyEmailPage() {
         overflow: 'hidden',
       }}
     >
-      <RainbowBackground />
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundImage: 'url(/background_001.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          zIndex: 0,
+        }}
+      />
       <Box
         sx={{
           position: 'relative',

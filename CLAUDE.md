@@ -8,10 +8,11 @@ This is a full-stack authentication application with React frontend and Node.js 
 
 ## Architecture
 
-**Frontend (client/):**
-- **Tech Stack:** React 19, Vite, Material-UI 7, TailwindCSS 4, React Router 7
+**Frontend (client-nextjs/):**
+- **Tech Stack:** Next.js 15.4.5, React 18, Material-UI 7, TailwindCSS 3, TypeScript
 - **Key Libraries:** @react-oauth/google, axios, react-hot-toast
-- **Structure:** Context-based auth state management with protected routes
+- **Structure:** App Router with context-based auth state management and route protection
+- **Features:** Admin dashboard, user profile management, password recovery, email verification
 
 **Backend (server/):**
 - **Tech Stack:** Node.js, Express 5, MongoDB with Mongoose
@@ -20,13 +21,13 @@ This is a full-stack authentication application with React frontend and Node.js 
 
 ## Development Commands
 
-### Client (Frontend)
+### Frontend (Next.js)
 ```bash
-cd client
-npm run dev        # Start development server (localhost:5173)
+cd client-nextjs
+npm run dev        # Start development server (localhost:3000)
 npm run build      # Build for production  
 npm run lint       # Run ESLint
-npm run preview    # Preview production build
+npm start          # Start production server
 ```
 
 ### Server (Backend)
@@ -37,21 +38,25 @@ npm start          # Start server (localhost:5000)
 
 ## Authentication Flow
 
-1. **Client Auth Service:** Currently uses mock data (`client/src/services/authService.js`) - replace with real API calls to backend
-2. **Backend API:** Full implementation at `/api/auth/*` routes
-3. **Protected Routes:** Use `ProtectedRoute` component and `AuthContext` for state management
-4. **Admin Routes:** Use `AdminRoute` component for admin-only pages
+1. **Frontend Auth Service:** Full integration with backend API (`client-nextjs/src/services/authService.ts`)
+2. **Backend API:** Complete implementation at `/api/auth/*` routes with email verification and password reset
+3. **Protected Routes:** `ProtectedRoute` component and `AuthContext` for state management
+4. **Admin Routes:** `AdminRoute` component for admin-only pages with proper role checking
+5. **Email Verification:** Complete flow with token-based verification and auto-login
+6. **Password Recovery:** Forgot password and reset password functionality
 
 ## Key Components Structure
 
-- **AuthContext:** Global auth state management (`client/src/context/AuthContext.jsx`)
-- **Protected Layout:** Shared layout with Header, Sidebar, Footer for authenticated pages
-- **Route Protection:** Nested route structure with `ProtectedRoute` wrapper
-- **Material-UI Theme:** Custom theme configuration in `client/src/theme.js`
+- **AuthContext:** Global auth state management (`client-nextjs/src/context/AuthContext.tsx`)
+- **Route Protection:** `ProtectedRoute` and `AdminRoute` components for access control
+- **Admin Dashboard:** Full user management interface at `/admin`
+- **User Profile:** Profile management page at `/profile` 
+- **Password Recovery:** Forgot/reset password pages with email integration
+- **Material-UI Theme:** Custom theme configuration in `client-nextjs/src/theme.ts`
 
 ## Database Models
 
-- **User Model:** Email, password (hashed), name, googleId, isAdmin flag
+- **User Model:** Email, password (hashed), name, googleId, isAdmin flag, email verification, password reset tokens
 - **Admin Detection:** Hardcoded email `robinheck101@gmail.com` gets admin privileges
 
 ## Environment Setup
@@ -68,7 +73,9 @@ No test framework currently configured. Check for test scripts in package.json b
 
 ## Important Notes
 
-- Frontend auth service is currently mocked - integrate with backend API
+- Complete full-stack authentication system with TypeScript
 - MongoDB connection required for backend functionality
 - Google OAuth requires proper client ID configuration
 - JWT tokens stored in localStorage on frontend
+- Email verification and password recovery fully implemented
+- Admin dashboard with user management capabilities

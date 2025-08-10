@@ -129,7 +129,8 @@ const getMe = async (token: string): Promise<User> => {
       id: response.data._id,
       name: response.data.name,
       email: response.data.email,
-      isAdmin: response.data.isAdmin || false
+      isAdmin: response.data.isAdmin || false,
+      emailVerified: response.data.emailVerified || false
     };
   } catch (error: unknown) {
     const errorMessage = handleAxiosError(error);
@@ -138,6 +139,26 @@ const getMe = async (token: string): Promise<User> => {
   }
 };
 
-const authService = { googleLogin, loginWithEmail, registerWithEmail, getMe };
+/**
+ * Sends a password reset email to the user.
+ * @param email - The user's email address.
+ * @returns A promise that resolves with a success message.
+ */
+const forgotPassword = async (email: string): Promise<{ message: string }> => {
+  try {
+    console.log('Sending password reset request for email:', email);
+    const response = await axios.post(`${API_BASE_URL}/auth/forgot-password`, { 
+      email 
+    });
+    
+    return { message: response.data.message };
+  } catch (error: unknown) {
+    const errorMessage = handleAxiosError(error);
+    console.error('Forgot password failed:', errorMessage);
+    throw new Error(errorMessage || 'Failed to send password reset email');
+  }
+};
+
+const authService = { googleLogin, loginWithEmail, registerWithEmail, getMe, forgotPassword };
 
 export default authService;

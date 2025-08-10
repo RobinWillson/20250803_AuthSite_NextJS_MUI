@@ -6,7 +6,6 @@ import { Container, Box, Typography, TextField, Button, Divider, Link } from '@m
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '@/hooks/useAuth';
 import authService from '@/services/authService';
-import RainbowBackground from '@/components/RainbowBackground';
 import GoogleIcon from '@/components/GoogleIcon';
 import NextLink from 'next/link';
 
@@ -115,7 +114,20 @@ export default function LoginPage() {
         overflow: 'hidden',
       }}
     >
-      <RainbowBackground />
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundImage: 'url(/background_001.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          zIndex: 0,
+        }}
+      />
       <Box
         sx={{
           position: 'relative',
@@ -190,7 +202,10 @@ export default function LoginPage() {
               >
                 Sign in with Google
               </Button>
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center', mt: 2 }}>
+                <Link component={NextLink} href="/forgot-password" variant="body2">
+                  Forgot your password?
+                </Link>
                 <Link component={NextLink} href="/register" variant="body2">
                   Don&apos;t have an account? Sign Up
                 </Link>

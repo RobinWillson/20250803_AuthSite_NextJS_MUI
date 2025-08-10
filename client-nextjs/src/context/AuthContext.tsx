@@ -71,12 +71,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   };
 
+  const updateUser = (userData: User) => {
+    setUser(userData);
+  };
+
   const value: AuthContextType = {
     user,
     token,
     loading,
     login,
     logout,
+    updateUser,
     isAuthenticated: !!token,
   };
 

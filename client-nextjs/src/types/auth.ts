@@ -4,6 +4,7 @@ export interface User {
   email: string;
   photo?: string;
   isAdmin?: boolean;
+  emailVerified?: boolean;
 }
 
 export interface AuthContextType {
@@ -12,6 +13,7 @@ export interface AuthContextType {
   loading: boolean;
   login: (userData: User, userToken: string) => void;
   logout: () => void;
+  updateUser: (userData: User) => void;
   isAuthenticated: boolean;
 }
 

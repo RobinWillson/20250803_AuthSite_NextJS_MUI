@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import validator from 'validator';
 import User from '../models/User.js';
 
 // @desc    Get all users
@@ -76,8 +77,54 @@ const deleteUser = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Update user profile
+// @route   PUT /api/users/profile
+// @access  Private
+const updateProfile = asyncHandler(async (req, res) => {
+  const { name, email } = req.body;
+  const user = req.user;
+
+  if (!name || !email) {
+    res.status(400);
+    throw new Error('Name and email are required');
+  }
+
+  if (!validator.isEmail(email)) {
+    res.status(400);
+    throw new Error('Invalid email format');
+  }
+
+  // Check if email is already taken by another user
+  if (email.toLowerCase() !== user.email.toLowerCase()) {
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      res.status(400);
+      throw new Error('Email is already in use');
+    }
+  }
+
+  // Update user
+  user.name = name;
+  if (email.toLowerCase() !== user.email.toLowerCase()) {
+    user.email = email.toLowerCase();
+    // If email changed, set emailVerified to false
+    user.emailVerified = false;
+  }
+  
+  const updatedUser = await user.save();
+
+  res.json({
+    _id: updatedUser._id,
+    name: updatedUser.name,
+    email: updatedUser.email,
+    isAdmin: updatedUser.isAdmin,
+    emailVerified: updatedUser.emailVerified,
+  });
+});
+
 export {
   getAllUsers,
   updateUserRole,
   deleteUser,
+  updateProfile,
 };

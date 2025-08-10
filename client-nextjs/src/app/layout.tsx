@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from '@/context/AuthContext';
 import ThemeRegistry from '@/components/ThemeRegistry';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import AppLayoutWrapper from '@/components/AppLayoutWrapper';
 
 export const metadata: Metadata = {
   title: "Authentication Site",
@@ -20,7 +21,9 @@ export default function RootLayout({
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "placeholder-client-id"}>
           <ThemeRegistry>
             <AuthProvider>
-              {children}
+              <AppLayoutWrapper>
+                {children}
+              </AppLayoutWrapper>
             </AuthProvider>
           </ThemeRegistry>
         </GoogleOAuthProvider>

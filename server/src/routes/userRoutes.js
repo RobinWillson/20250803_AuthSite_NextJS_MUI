@@ -5,15 +5,18 @@ import {
   getAllUsers,
   updateUserRole,
   deleteUser,
+  updateProfile,
 } from '../controllers/userController.js';
 
 const router = express.Router();
 
 // GET /api/users/me - Get current user's profile
 router.get('/me', authMiddleware, (req, res) => {
-  // This route is not part of the current task, leaving as is.
   res.json(req.user);
 });
+
+// PUT /api/users/profile - Update current user's profile
+router.put('/profile', authMiddleware, updateProfile);
 
 // Admin User Management Routes
 router.route('/')

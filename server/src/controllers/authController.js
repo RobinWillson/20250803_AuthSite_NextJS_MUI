@@ -4,7 +4,7 @@ import validator from 'validator';
 import asyncHandler from 'express-async-handler';
 import { OAuth2Client } from 'google-auth-library';
 import { generateToken } from '../utils/tokenUtils.js';
-import { generateVerificationToken, sendVerificationEmail } from '../utils/emailService.js';
+import { generateVerificationToken, sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService.js';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -139,22 +139,30 @@ export const loginUser = asyncHandler(async (req, res) => {
   }
 
   const user = await User.findOne({ email });
-  // Securely check if user exists and has a password (i.e., not a Google-only user)
-  if (!user || !user.password) {
+  
+  // Check if user exists
+  if (!user) {
     res.status(401);
-    throw new Error('Invalid credentials');
+    throw new Error('Invalid user. Please check your email');
   }
 
+  // Check if user has a password (not Google-only user)
+  if (!user.password) {
+    res.status(401);
+    throw new Error('Invalid credentials. This account uses Google login only');
+  }
+
+  // Check password
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     res.status(401);
-    throw new Error('Invalid credentials');
+    throw new Error('Invalid password. Please try again');
   }
 
   // Check if email is verified
   if (!user.emailVerified) {
     res.status(403);
-    throw new Error('Please verify your email address before logging in. Check your inbox for the verification link.');
+    throw new Error('Invalid credentials. Email not verified');
   }
 
   const token = generateToken(user);
@@ -252,4 +260,78 @@ export const resendVerificationEmail = asyncHandler(async (req, res) => {
     res.status(500);
     throw new Error('Failed to send verification email');
   }
+});
+
+// @desc    Request password reset
+// @route   POST /api/auth/forgot-password
+// @access  Public
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    res.status(400);
+    throw new Error('Email is required');
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase() });
+
+  if (!user) {
+    // For security, don't reveal if email exists
+    res.status(200).json({ message: 'If that email exists, a password reset link has been sent.' });
+    return;
+  }
+
+  // Generate password reset token
+  const resetToken = generateVerificationToken();
+  const resetExpires = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour
+
+  user.passwordResetToken = resetToken;
+  user.passwordResetExpires = resetExpires;
+  await user.save();
+
+  // Send password reset email
+  try {
+    await sendPasswordResetEmail(user.email, user.name, resetToken);
+    res.status(200).json({ message: 'If that email exists, a password reset link has been sent.' });
+  } catch (emailError) {
+    console.error('Failed to send password reset email:', emailError);
+    // Still return success for security
+    res.status(200).json({ message: 'If that email exists, a password reset link has been sent.' });
+  }
+});
+
+// @desc    Reset password with token
+// @route   POST /api/auth/reset-password
+// @access  Public
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    res.status(400);
+    throw new Error('Token and password are required');
+  }
+
+  if (password.length < 8) {
+    res.status(400);
+    throw new Error('Password must be at least 8 characters long');
+  }
+
+  const user = await User.findOne({
+    passwordResetToken: token,
+    passwordResetExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    res.status(400);
+    throw new Error('Invalid or expired password reset token');
+  }
+
+  // Update password
+  const hashedPassword = await bcrypt.hash(password, 10);
+  user.password = hashedPassword;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+  await user.save();
+
+  res.status(200).json({ message: 'Password has been reset successfully' });
 });

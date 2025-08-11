@@ -15,3 +15,7 @@ Now, let us design some UI for more friendly.
     npm run dev
     ```
 * visit `http://localhost:5173/`
+
+# Clear port process
+`netstat -ano | findstr :3001`
+`taskkill /F /PID 28488`  

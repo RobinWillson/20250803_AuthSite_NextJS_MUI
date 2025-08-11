@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Container,
   Paper,
@@ -19,10 +20,19 @@ import {
 import NextLink from 'next/link';
 
 export default function ForgotPasswordPage() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Pre-fill email from query params
+  useEffect(() => {
+    const emailParam = searchParams.get('email');
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +56,12 @@ export default function ForgotPasswordPage() {
       if (response.ok) {
         setSuccess(data.message || 'Password reset link has been sent to your email address.');
       } else {
-        setError(data.message || 'Failed to send reset link. Please try again.');
+        // Check if this is a Google user error
+        if (data.isGoogleUser) {
+          setError(data.message || 'This account is registered by Google. Login with your Google Account');
+        } else {
+          setError(data.message || 'Failed to send reset link. Please try again.');
+        }
       }
     } catch {
       setError('An error occurred. Please try again later.');

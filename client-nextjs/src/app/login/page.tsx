@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Container, Box, Typography, TextField, Button, Divider, Link } from '@mui/material';
-import { useGoogleLogin } from '@react-oauth/google';
+import { Container, Box, Typography, TextField, Button, Divider, Link, CircularProgress } from '@mui/material';
+import { GoogleLogin, GoogleCredentialResponse, useGoogleOneTapLogin } from '@react-oauth/google';
 import { useAuth } from '@/hooks/useAuth';
 import authService from '@/services/authService';
 import GoogleIcon from '@/components/GoogleIcon';
@@ -20,8 +20,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { login, isAuthenticated } = useAuth();
   const router = useRouter();
+  const googleLoginRef = useRef<HTMLDivElement>(null);
 
   // Ensure component is mounted before accessing auth state
   useEffect(() => {
@@ -55,6 +58,7 @@ export default function LoginPage() {
       setErrors(validationErrors);
     } else {
       try {
+        setIsLoading(true);
         setErrors({});
         const { user, token } = await authService.loginWithEmail(email, password);
         login(user, token);
@@ -62,31 +66,51 @@ export default function LoginPage() {
       } catch (error) {
         console.error('Email/Password login failed:', error);
         setErrors({ form: 'Invalid credentials. Please try again.' });
+      } finally {
+        setIsLoading(false);
       }
     }
   };
 
-  const handleGoogleLoginSuccess = async (tokenResponse: { access_token: string }) => {
+  const handleGoogleLoginSuccess = async (credentialResponse: GoogleCredentialResponse) => {
     try {
-      const { user, token } = await authService.googleLogin(tokenResponse.access_token);
+      setIsGoogleLoading(true);
+      setErrors({});
+      if (!credentialResponse.credential) {
+        throw new Error('No credential received from Google');
+      }
+      const { user, token } = await authService.googleLogin(credentialResponse.credential);
       login(user, token);
       // Use replace instead of push for faster navigation
       router.replace('/dashboard');
     } catch (error) {
       console.error('Google login failed:', error);
       setErrors({ form: 'Google login failed. Please try again.' });
+      setIsGoogleLoading(false);
     }
   };
 
   const handleGoogleLoginError = (error: unknown) => {
     console.error('Google Login Failed:', error);
     setErrors({ form: 'Google login failed. Please try again.' });
+    setIsGoogleLoading(false);
   };
 
-  const triggerGoogleLogin = useGoogleLogin({
-    onSuccess: handleGoogleLoginSuccess,
-    onError: handleGoogleLoginError,
-  });
+  const triggerGoogleLogin = () => {
+    if (googleLoginRef.current) {
+      // Find the Google button inside the ref and click it
+      const googleButton = googleLoginRef.current.querySelector('div[role="button"]') as HTMLElement;
+      if (googleButton) {
+        googleButton.click();
+      } else {
+        // Try clicking any clickable element
+        const clickableElement = googleLoginRef.current.querySelector('[data-testid], iframe, div') as HTMLElement;
+        if (clickableElement) {
+          clickableElement.click();
+        }
+      }
+    }
+  };
 
   // Show loading state during SSR/hydration
   if (!mounted) {
@@ -168,6 +192,7 @@ export default function LoginPage() {
                   helperText={errors.email}
                   autoComplete="email"
                   autoFocus
+                  disabled={isLoading || isGoogleLoading}
                 />
                 <TextField
                   size="small"
@@ -182,6 +207,7 @@ export default function LoginPage() {
                   error={!!errors.password}
                   helperText={errors.password}
                   autoComplete="current-password"
+                  disabled={isLoading || isGoogleLoading}
                 />
               </Box>
               {errors.form && (
@@ -189,21 +215,49 @@ export default function LoginPage() {
                   {errors.form}
                 </Typography>
               )}
-              <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
-                Sign In
+              <Button 
+                type="submit" 
+                fullWidth 
+                variant="contained" 
+                sx={{ mt: 3, mb: 2, position: 'relative' }}
+                disabled={isLoading || isGoogleLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
+                    Signing In...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
               </Button>
               <Divider sx={{ my: 2 }}>OR</Divider>
+              {/* Hidden GoogleLogin component for ID token functionality */}
+              <Box ref={googleLoginRef} sx={{ display: 'none' }}>
+                <GoogleLogin
+                  onSuccess={handleGoogleLoginSuccess}
+                  onError={handleGoogleLoginError}
+                  data-testid="google-login-button"
+                />
+              </Box>
+              
+              {/* Custom styled Google button */}
               <Button
                 fullWidth
                 variant="outlined"
-                onClick={() => triggerGoogleLogin()}
-                startIcon={<GoogleIcon />}
-                sx={{ mb: 2 }}
+                onClick={triggerGoogleLogin}
+                startIcon={isGoogleLoading ? <CircularProgress size={20} /> : <GoogleIcon />}
+                sx={{ mb: 2, position: 'relative' }}
+                disabled={isLoading || isGoogleLoading}
               >
-                Sign in with Google
+                {isGoogleLoading ? 'Signing in with Google...' : 'Sign in with Google'}
               </Button>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center', mt: 2 }}>
-                <Link component={NextLink} href="/forgot-password" variant="body2">
+                <Link 
+                  component={NextLink} 
+                  href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`} 
+                  variant="body2"
+                >
                   Forgot your password?
                 </Link>
                 <Link component={NextLink} href="/register" variant="body2">
@@ -214,6 +268,46 @@ export default function LoginPage() {
           </Box>
         </Container>
       </Box>
+      
+      {/* Global loading overlay for Google authentication */}
+      {isGoogleLoading && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: 'white',
+              padding: 4,
+              borderRadius: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 2,
+              boxShadow: 3,
+            }}
+          >
+            <CircularProgress size={40} />
+            <Typography variant="h6" color="primary">
+              Signing in with Google...
+            </Typography>
+            <Typography variant="body2" color="text.secondary" align="center">
+              Please wait while we authenticate your account
+            </Typography>
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 }

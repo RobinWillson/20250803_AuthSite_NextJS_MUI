@@ -16,15 +16,15 @@ const handleAxiosError = (error: unknown): string => {
 };
 
 /**
- * Exchanges a Google ID token for your application's own session token (JWT).
- * @param googleIdToken - The ID token received from Google Sign-In.
+ * Exchanges a Google credential token (ID token) for your application's own session token (JWT).
+ * @param googleCredential - The credential token received from Google Sign-In.
  * @returns A promise that resolves with user data and an app token.
  */
-const googleLogin = async (googleIdToken: string): Promise<AuthResponse> => {
+const googleLogin = async (googleCredential: string): Promise<AuthResponse> => {
   try {
-    console.log('Sending Google ID Token to backend for authentication');
+    console.log('Sending Google credential token to backend for authentication');
     const response = await axios.post(`${API_BASE_URL}/auth/google`, { 
-      token: googleIdToken 
+      token: googleCredential 
     });
     
     // Get user data from the token

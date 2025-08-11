@@ -38,6 +38,7 @@ export const googleSignIn = asyncHandler(async (req, res) => {
     // If user exists but signed up locally, link their Google ID
     if (!user.googleId) {
       user.googleId = googleId;
+      user.emailVerified = true; // Google users are automatically verified
       await user.save();
     }
   } else {
@@ -48,6 +49,7 @@ export const googleSignIn = asyncHandler(async (req, res) => {
       email: lowerCaseEmail,
       googleId,
       isAdmin,
+      emailVerified: true, // Google users are automatically verified
     });
   }
 
@@ -278,6 +280,15 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   if (!user) {
     // For security, don't reveal if email exists
     res.status(200).json({ message: 'If that email exists, a password reset link has been sent.' });
+    return;
+  }
+
+  // Check if user is Google-only (has googleId but no password)
+  if (user.googleId && !user.password) {
+    res.status(400).json({ 
+      message: 'This account is registered by Google. Login with your Google Account',
+      isGoogleUser: true 
+    });
     return;
   }
 
